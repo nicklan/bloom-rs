@@ -31,6 +31,7 @@
 //! the two types and transmuted.
 
 #![feature(default_type_params)]
+#![license = "GPL2"]
 extern crate collections;
 extern crate core;
 

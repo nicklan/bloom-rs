@@ -2,7 +2,9 @@
 //
 //! # Basic Usage
 //!
-//! ```use BloomFilter;
+//! ```
+//! extern crate bloom;
+//! use bloom::BloomFilter;
 //! let expected_num_items = 1000;
 //! let false_positive_rate = 0.01;
 //! /* make a bloomfilter for ints */

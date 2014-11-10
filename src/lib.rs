@@ -2,16 +2,15 @@
 //
 //! # Basic Usage
 //!
-//! ```
-//! extern crate bloom;
+//! ```rust,no_run
 //! use bloom::BloomFilter;
 //! let expected_num_items = 1000;
 //! let false_positive_rate = 0.01;
 //! /* make a bloomfilter for ints */
-//! let filter:BloomFilter<int,int> = BloomFilter::with_rate(false_positive_rate,expected_num_items);
-//! filter.insert(1);
-//! filter.contains(1); /* true */
-//! filter.contains(2); /* false */
+//! let mut filter:BloomFilter<int,int> = BloomFilter::with_rate(false_positive_rate,expected_num_items);
+//! filter.insert(&1);
+//! filter.contains(&1); /* true */
+//! filter.contains(&2); /* false */
 //! ```
 //!
 //! # False Positive Rate
@@ -87,8 +86,8 @@ impl<T: Hash, U: Hash<S>, S, H:Hasher<S>> BloomFilter<T,U,H> {
     }
 
     /// Insert item into this bloomfilter
-    pub fn insert(& mut self,item: T) {
-        for h in self.get_hashes(&item).iter() {
+    pub fn insert(& mut self,item: &T) {
+        for h in self.get_hashes(item).iter() {
             let idx = (h % self.bits.len() as u64) as uint;
             self.bits.set(idx,true)
         }
@@ -152,6 +151,14 @@ mod test_bloom {
     use super::{BloomFilter,needed_bits,optimal_num_hashes};
 
     #[test]
+    fn simple() {
+        let mut b:BloomFilter<uint,uint> = BloomFilter::with_rate(0.01,100);
+        b.insert(&1);
+        assert!(b.contains(&1));
+        assert!(!b.contains(&2));
+    }
+
+    #[test]
     fn bloom_test() {
         let cnt = 500000u;
         let rate = 0.01 as f32;
@@ -170,7 +177,7 @@ mod test_bloom {
         while i < cnt {
             let v = rng.gen::<int>();
             set.insert(v);
-            b.insert(v);
+            b.insert(&v);
             i+=1;
         }
 

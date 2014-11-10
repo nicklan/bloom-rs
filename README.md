@@ -4,16 +4,16 @@ A basic implementation of bloom filters in rust.
 
 # Basic Usage
 
-```
+```rust
 extern crate bloom;
 use bloom::BloomFilter;
 let expected_num_items = 1000;
 let false_positive_rate = 0.01;
 /* make a bloomfilter for ints */
 let filter:BloomFilter<int,int> = BloomFilter::with_rate(false_positive_rate,expected_num_items);
-filter.insert(1);
-filter.contains(1); /* true */
-filter.contains(2); /* false */
+filter.insert(&1);
+filter.contains(&1); /* true */
+filter.contains(&2); /* false */
 ```
 
 # False Positive Rate

@@ -23,17 +23,40 @@
 #![license = "GPL2"]
 extern crate collections;
 extern crate core;
+extern crate time;
 
 use collections::Bitv;
 use std::hash::{Hash,Hasher,RandomSipHasher};
 use std::cmp::{min,max};
-
+use std::iter::Iterator;
 
 pub struct BloomFilter {
     bits: Bitv,
     num_hashes: uint,
     h1: RandomSipHasher,
     h2: RandomSipHasher,
+}
+
+struct HashIter {
+    h1: u64,
+    h2: u64,
+    i: uint,
+    count: uint,
+}
+
+impl Iterator<u64> for HashIter {
+    fn next(&mut self) -> Option<u64> {
+        if self.i == self.count {
+            return None;
+        }
+        let r = match self.i {
+            0 => { self.h1 }
+            1 => { self.h2 }
+            _ => { self.h1+self.i as u64 * self.h2 }
+        };
+        self.i+=1;
+        Some(r)
+    }
 }
 
 impl BloomFilter {
@@ -58,7 +81,7 @@ impl BloomFilter {
 
     /// Insert item into this bloomfilter
     pub fn insert<T: Hash>(& mut self,item: &T) {
-        for h in self.get_hashes(item).iter() {
+        for h in self.get_hashes(item) {
             let idx = (h % self.bits.len() as u64) as uint;
             self.bits.set(idx,true)
         }
@@ -68,7 +91,7 @@ impl BloomFilter {
     /// This function can return false positives, but no false
     /// negatives.
     pub fn contains<T: Hash>(&self, item: &T) -> bool {
-        for h in self.get_hashes(item).iter() {
+        for h in self.get_hashes(item) {
             let idx = (h % self.bits.len() as u64) as uint;
             if !self.bits.get(idx) {
                 return false;
@@ -78,14 +101,15 @@ impl BloomFilter {
     }
 
 
-    fn get_hashes<T: Hash>(&self, item: &T) -> Vec<u64> {
-        let mut vec = Vec::with_capacity(self.num_hashes);
+    fn get_hashes<T: Hash>(&self, item: &T) -> HashIter {
         let h1 = self.h1.hash(item);
         let h2 = self.h2.hash(item);
-        for i in range(0,self.num_hashes) {
-            vec.push((h1+i as u64 *h2))
+        HashIter {
+            h1: h1,
+            h2: h2,
+            i: 0,
+            count: self.num_hashes,
         }
-        vec
     }
 }
 
@@ -166,5 +190,3 @@ mod test_bloom {
         assert!(actual_rate < (rate+0.001));
     }
 }
-
-

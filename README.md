@@ -15,6 +15,14 @@ filter.contains(&1i); /* true */
 filter.contains(&2i); /* false */
 ```
 
+# Installation
+Use [Cargo](http://doc.crates.io/) and add the following to your Cargo.toml
+
+```
+[dependencies.bloom-rs]
+git = "https://github.com/nicklan/bloom-rs.git"
+```
+
 # False Positive Rate
 The false positive rate is specified as a float in the range
 (0,1).  If indicates that out of `X` probes, `X * rate` should

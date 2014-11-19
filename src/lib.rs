@@ -23,12 +23,13 @@
 #![license = "GPL2"]
 extern crate collections;
 extern crate core;
-extern crate time;
+extern crate test;
 
 use collections::Bitv;
 use std::hash::{Hash,Hasher,RandomSipHasher};
 use std::cmp::{min,max};
 use std::iter::Iterator;
+use std::num::Float;
 
 pub struct BloomFilter {
     bits: Bitv,
@@ -132,6 +133,58 @@ pub fn needed_bits(false_pos_rate:f32, num_items: uint) -> uint {
     (num_items as f32 * ((1.0/false_pos_rate).ln() / ln22)).round() as uint
 }
 
+
+#[cfg(test)]
+mod bench {
+    use test::Bencher;
+    use std::rand;
+    use std::rand::Rng;
+
+    use super::BloomFilter;
+
+    #[bench]
+    fn insert_benchmark(b: &mut Bencher) {
+        let cnt = 500000u;
+        let rate = 0.01 as f32;
+
+        let mut bf:BloomFilter = BloomFilter::with_rate(rate,cnt);
+        let mut rng = rand::task_rng();
+
+        b.iter(|| {
+            let mut i = 0;
+            while i < cnt {
+                let v = rng.gen::<int>();
+                bf.insert(&v);
+                i+=1;
+            }
+        })
+    }
+
+    #[bench]
+    fn contains_benchmark(b: &mut Bencher) {
+        let cnt = 500000u;
+        let rate = 0.01 as f32;
+
+        let mut bf:BloomFilter = BloomFilter::with_rate(rate,cnt);
+        let mut rng = rand::task_rng();
+
+        let mut i = 0;
+        while i < cnt {
+            let v = rng.gen::<int>();
+            bf.insert(&v);
+            i+=1;
+        }
+
+        b.iter(|| {
+            i = 0;
+            while i < cnt {
+                let v = rng.gen::<int>();
+                bf.contains(&v);
+                i+=1;
+            }
+        })
+    }
+}
 
 #[cfg(test)]
 mod test_bloom {

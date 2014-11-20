@@ -1,6 +1,6 @@
 # bloom-rs
 
-A basic implementation of bloom filters in rust.
+An implementation of bloom filters in rust.
 
 # Basic Usage
 

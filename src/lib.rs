@@ -80,6 +80,16 @@ impl BloomFilter {
         BloomFilter::with_size(bits,optimal_num_hashes(bits,expected_num_items))
     }
 
+    /// Get the number of bits this BloomFilter is using
+    pub fn num_bits(&self) -> uint {
+        self.bits.len()
+    }
+
+    /// Get the number of hash functions this BloomFilter is using
+    pub fn num_hashes(&self) -> uint {
+        self.num_hashes
+    }
+
     /// Insert item into this bloomfilter
     pub fn insert<T: Hash>(& mut self,item: &T) {
         for h in self.get_hashes(item) {
@@ -89,7 +99,7 @@ impl BloomFilter {
     }
 
     /// Check if the item has been inserted into this bloom filter.
-    /// This function can return false positives, but no false
+    /// This function can return false positives, but not false
     /// negatives.
     pub fn contains<T: Hash>(&self, item: &T) -> bool {
         for h in self.get_hashes(item) {
@@ -99,6 +109,11 @@ impl BloomFilter {
             }
         }
         true
+    }
+
+    /// Remove all values from this BloomFilter
+    pub fn clear(&mut self) {
+        self.bits.clear();
     }
 
 
@@ -200,6 +215,8 @@ mod test_bloom {
         b.insert(&1i);
         assert!(b.contains(&1i));
         assert!(!b.contains(&2i));
+        b.clear();
+        assert!(!b.contains(&1i));
     }
 
     #[test]

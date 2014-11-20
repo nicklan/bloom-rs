@@ -1,4 +1,4 @@
-# bloom-rs
+# bloom
 
 An implementation of bloom filters in rust.
 
@@ -19,7 +19,7 @@ filter.contains(&2i); /* false */
 Use [Cargo](http://doc.crates.io/) and add the following to your Cargo.toml
 
 ```
-[dependencies.bloom-rs]
+[dependencies.bloom]
 git = "https://github.com/nicklan/bloom-rs.git"
 ```
 

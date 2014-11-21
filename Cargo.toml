@@ -6,7 +6,7 @@ authors = ["Nick Lanham <nick@afternight.org>"]
 homepage = "https://github.com/nicklan/bloom-rs"
 readme = "README.md"
 keywords = ["bloom", "filter", "bloomfilter"]
-license = "gpl2"
+license = "GPL-2.0"
 
 [lib]
 name = "bloom"

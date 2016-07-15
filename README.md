@@ -19,8 +19,8 @@ filter.contains(&2i); /* false */
 Use [Cargo](http://doc.crates.io/) and add the following to your Cargo.toml
 
 ```
-[dependencies.bloom]
-git = "https://github.com/nicklan/bloom-rs.git"
+[dependencies]
+bloom="0.2.0"
 ```
 
 # False Positive Rate
@@ -28,3 +28,12 @@ The false positive rate is specified as a float in the range
 (0,1).  If indicates that out of `X` probes, `X * rate` should
 return a false positive.  Higher values will lead to smaller (but
 more inaccurate) filters.
+
+# Benchmarks
+This crate includes some benchmarks to test the performance of the
+bloom filter.  To run them you'll need to use rust nightly (the
+benchmark feature isn't stable yet), and then run:
+
+```
+cargo bench --features "do-bench"
+```

@@ -7,9 +7,9 @@
 //! let expected_num_items = 1000;
 //! let false_positive_rate = 0.01;
 //! let mut filter:BloomFilter = BloomFilter::with_rate(false_positive_rate,expected_num_items);
-//! filter.insert(&1i);
-//! filter.contains(&1i); /* true */
-//! filter.contains(&2i); /* false */
+//! filter.insert(&1);
+//! filter.contains(&1); /* true */
+//! filter.contains(&2); /* false */
 //! ```
 //!
 //! # False Positive Rate
@@ -19,33 +19,35 @@
 //! more inaccurate) filters.
 //!
 
-#![feature(default_type_params)]
-#![license = "GPL2"]
-extern crate collections;
-extern crate core;
-extern crate test;
+#![cfg_attr(feature = "do-bench", feature(test))]
 
-use collections::Bitv;
-use std::hash::{Hash,Hasher,RandomSipHasher};
+extern crate core;
+extern crate bit_vec;
+extern crate rand;
+
+use bit_vec::BitVec;
+use rand::Rng;
 use std::cmp::{min,max};
+use std::hash::{Hash,Hasher,SipHasher};
 use std::iter::Iterator;
-use std::num::Float;
 
 pub struct BloomFilter {
-    bits: Bitv,
-    num_hashes: uint,
-    h1: RandomSipHasher,
-    h2: RandomSipHasher,
+    bits: BitVec,
+    num_hashes: u32,
+    h1: SipHasher,
+    h2: SipHasher,
 }
 
 struct HashIter {
     h1: u64,
     h2: u64,
-    i: uint,
-    count: uint,
+    i: u32,
+    count: u32,
 }
 
-impl Iterator<u64> for HashIter {
+impl Iterator for HashIter {
+    type Item = u64;
+
     fn next(&mut self) -> Option<u64> {
         if self.i == self.count {
             return None;
@@ -53,7 +55,10 @@ impl Iterator<u64> for HashIter {
         let r = match self.i {
             0 => { self.h1 }
             1 => { self.h2 }
-            _ => { self.h1+self.i as u64 * self.h2 }
+            _ => {
+                let p1 = self.h1.wrapping_add(self.i as u64);
+                p1.wrapping_mul(self.h2)
+            }
         };
         self.i+=1;
         Some(r)
@@ -63,37 +68,38 @@ impl Iterator<u64> for HashIter {
 impl BloomFilter {
     /// Create a new BloomFilter with the specified number of bits,
     /// and hashes
-    pub fn with_size(num_bits: uint, num_hashes: uint) -> BloomFilter {
+    pub fn with_size(num_bits: usize, num_hashes: u32) -> BloomFilter {
+        let mut rng = rand::thread_rng();
         BloomFilter {
-            bits: Bitv::with_capacity(num_bits, false),
+            bits: BitVec::from_elem(num_bits,false),
             num_hashes: num_hashes,
-            h1: RandomSipHasher::new(),
-            h2: RandomSipHasher::new(),
+            h1: SipHasher::new_with_keys(rng.gen::<u64>(),rng.gen::<u64>()),
+            h2: SipHasher::new_with_keys(rng.gen::<u64>(),rng.gen::<u64>()),
         }
     }
 
     /// create a BloomFilter that expectes to hold
     /// `expected_num_items`.  The filter will be sized to have a
     /// false positive rate of the value specified in `rate`.
-    pub fn with_rate(rate: f32, expected_num_items: uint) -> BloomFilter {
+    pub fn with_rate(rate: f32, expected_num_items: u32) -> BloomFilter {
         let bits = needed_bits(rate,expected_num_items);
         BloomFilter::with_size(bits,optimal_num_hashes(bits,expected_num_items))
     }
 
     /// Get the number of bits this BloomFilter is using
-    pub fn num_bits(&self) -> uint {
+    pub fn num_bits(&self) -> usize {
         self.bits.len()
     }
 
     /// Get the number of hash functions this BloomFilter is using
-    pub fn num_hashes(&self) -> uint {
+    pub fn num_hashes(&self) -> u32 {
         self.num_hashes
     }
 
     /// Insert item into this bloomfilter
     pub fn insert<T: Hash>(& mut self,item: &T) {
         for h in self.get_hashes(item) {
-            let idx = (h % self.bits.len() as u64) as uint;
+            let idx = (h % self.bits.len() as u64) as usize;
             self.bits.set(idx,true)
         }
     }
@@ -103,9 +109,14 @@ impl BloomFilter {
     /// negatives.
     pub fn contains<T: Hash>(&self, item: &T) -> bool {
         for h in self.get_hashes(item) {
-            let idx = (h % self.bits.len() as u64) as uint;
-            if !self.bits.get(idx) {
-                return false;
+            let idx = (h % self.bits.len() as u64) as usize;
+            match self.bits.get(idx) {
+                Some(b) => {
+                    if !b {
+                        return false;
+                    }
+                }
+                None => { panic!("Hash mod failed"); }
             }
         }
         true
@@ -118,8 +129,12 @@ impl BloomFilter {
 
 
     fn get_hashes<T: Hash>(&self, item: &T) -> HashIter {
-        let h1 = self.h1.hash(item);
-        let h2 = self.h2.hash(item);
+        let mut h1 = self.h1.clone();
+        let mut h2 = self.h2.clone();
+        item.hash(&mut h1);
+        item.hash(&mut h2);
+        let h1 = h1.finish();
+        let h2 = h2.finish();
         HashIter {
             h1: h1,
             h2: h2,
@@ -131,10 +146,10 @@ impl BloomFilter {
 
 /// Return the optimal number of hashes to use for the given number of
 /// bits and items in a filter
-pub fn optimal_num_hashes(num_bits: uint, num_items: uint) -> uint {
+pub fn optimal_num_hashes(num_bits: usize, num_items: u32) -> u32 {
     min(
         max(
-            (num_bits as f32 / num_items as f32 * core::f32::consts::LN_2).round() as uint,
+            (num_bits as f32 / num_items as f32 * core::f32::consts::LN_2).round() as u32,
              2
            ),
         200
@@ -143,32 +158,32 @@ pub fn optimal_num_hashes(num_bits: uint, num_items: uint) -> uint {
 
 /// Return the number of bits needed to satisfy the specified false
 /// positive rate, if the filter will hold `num_items` items.
-pub fn needed_bits(false_pos_rate:f32, num_items: uint) -> uint {
+pub fn needed_bits(false_pos_rate:f32, num_items: u32) -> usize {
     let ln22 = core::f32::consts::LN_2 * core::f32::consts::LN_2;
-    (num_items as f32 * ((1.0/false_pos_rate).ln() / ln22)).round() as uint
+    (num_items as f32 * ((1.0/false_pos_rate).ln() / ln22)).round() as usize
 }
 
-
+#[cfg(feature = "do-bench")]
 #[cfg(test)]
 mod bench {
-    use test::Bencher;
-    use std::rand;
-    use std::rand::Rng;
+    extern crate test;
+    use self::test::Bencher;
+    use rand::{self,Rng};
 
     use super::BloomFilter;
 
     #[bench]
     fn insert_benchmark(b: &mut Bencher) {
-        let cnt = 500000u;
+        let cnt = 500000;
         let rate = 0.01 as f32;
 
         let mut bf:BloomFilter = BloomFilter::with_rate(rate,cnt);
-        let mut rng = rand::task_rng();
+        let mut rng = rand::thread_rng();
 
         b.iter(|| {
             let mut i = 0;
             while i < cnt {
-                let v = rng.gen::<int>();
+                let v = rng.gen::<i32>();
                 bf.insert(&v);
                 i+=1;
             }
@@ -177,15 +192,15 @@ mod bench {
 
     #[bench]
     fn contains_benchmark(b: &mut Bencher) {
-        let cnt = 500000u;
+        let cnt = 500000;
         let rate = 0.01 as f32;
 
         let mut bf:BloomFilter = BloomFilter::with_rate(rate,cnt);
-        let mut rng = rand::task_rng();
+        let mut rng = rand::thread_rng();
 
         let mut i = 0;
         while i < cnt {
-            let v = rng.gen::<int>();
+            let v = rng.gen::<i32>();
             bf.insert(&v);
             i+=1;
         }
@@ -193,7 +208,7 @@ mod bench {
         b.iter(|| {
             i = 0;
             while i < cnt {
-                let v = rng.gen::<int>();
+                let v = rng.gen::<i32>();
                 bf.contains(&v);
                 i+=1;
             }
@@ -202,26 +217,24 @@ mod bench {
 }
 
 #[cfg(test)]
-mod test_bloom {
+mod tests {
     use std::collections::HashSet;
-    use std::rand;
-    use std::rand::Rng;
-
+    use rand::{self,Rng};
     use super::{BloomFilter,needed_bits,optimal_num_hashes};
 
     #[test]
     fn simple() {
         let mut b:BloomFilter = BloomFilter::with_rate(0.01,100);
-        b.insert(&1i);
-        assert!(b.contains(&1i));
-        assert!(!b.contains(&2i));
+        b.insert(&1);
+        assert!(b.contains(&1));
+        assert!(!b.contains(&2));
         b.clear();
-        assert!(!b.contains(&1i));
+        assert!(!b.contains(&1));
     }
 
     #[test]
     fn bloom_test() {
-        let cnt = 500000u;
+        let cnt = 500000;
         let rate = 0.01 as f32;
 
         let bits = needed_bits(rate,cnt);
@@ -230,22 +243,22 @@ mod test_bloom {
         assert_eq!(hashes, 7);
 
         let mut b:BloomFilter = BloomFilter::with_rate(rate,cnt);
-        let mut set:HashSet<int> = HashSet::new();
-        let mut rng = rand::task_rng();
+        let mut set:HashSet<i32> = HashSet::new();
+        let mut rng = rand::thread_rng();
 
         let mut i = 0;
 
         while i < cnt {
-            let v = rng.gen::<int>();
+            let v = rng.gen::<i32>();
             set.insert(v);
             b.insert(&v);
             i+=1;
         }
 
         i = 0;
-        let mut false_positives = 0u;
+        let mut false_positives = 0;
         while i < cnt {
-            let v = rng.gen::<int>();
+            let v = rng.gen::<i32>();
             match (b.contains(&v),set.contains(&v)) {
                 (true, false) => { false_positives += 1; }
                 (false, true) => { assert!(false); } // should never happen

@@ -19,6 +19,9 @@
 //! more inaccurate) filters.
 //!
 
+#![crate_name="bloom"]
+#![crate_type = "rlib"]
+
 #![cfg_attr(feature = "do-bench", feature(test))]
 
 extern crate core;

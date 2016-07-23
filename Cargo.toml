@@ -13,6 +13,8 @@ name = "bloom"
 
 [dependencies]
 bit-vec = "0.4.3"
+
+[dev-dependencies]
 rand = "0.3.14"
 
 [features]

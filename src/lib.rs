@@ -26,19 +26,18 @@
 
 extern crate core;
 extern crate bit_vec;
-extern crate rand;
 
 use bit_vec::BitVec;
-use rand::Rng;
 use std::cmp::{min,max};
-use std::hash::{Hash,Hasher,SipHasher};
+use std::collections::hash_map::RandomState;
+use std::hash::{BuildHasher,Hash,Hasher};
 use std::iter::Iterator;
 
-pub struct BloomFilter {
+pub struct BloomFilter<R = RandomState, S = RandomState> {
     bits: BitVec,
     num_hashes: u32,
-    h1: SipHasher,
-    h2: SipHasher,
+    hash_builder_one: R,
+    hash_builder_two: S,
 }
 
 struct HashIter {
@@ -68,25 +67,61 @@ impl Iterator for HashIter {
     }
 }
 
-impl BloomFilter {
+impl BloomFilter<RandomState, RandomState> {
     /// Create a new BloomFilter with the specified number of bits,
     /// and hashes
-    pub fn with_size(num_bits: usize, num_hashes: u32) -> BloomFilter {
-        let mut rng = rand::thread_rng();
+    pub fn with_size(num_bits: usize, num_hashes: u32) -> BloomFilter<RandomState, RandomState> {
         BloomFilter {
             bits: BitVec::from_elem(num_bits,false),
             num_hashes: num_hashes,
-            h1: SipHasher::new_with_keys(rng.gen::<u64>(),rng.gen::<u64>()),
-            h2: SipHasher::new_with_keys(rng.gen::<u64>(),rng.gen::<u64>()),
+            hash_builder_one: RandomState::new(),
+            hash_builder_two: RandomState::new(),
         }
     }
 
-    /// create a BloomFilter that expectes to hold
+    /// create a BloomFilter that expects to hold
     /// `expected_num_items`.  The filter will be sized to have a
     /// false positive rate of the value specified in `rate`.
-    pub fn with_rate(rate: f32, expected_num_items: u32) -> BloomFilter {
+    pub fn with_rate(rate: f32, expected_num_items: u32) -> BloomFilter<RandomState, RandomState> {
         let bits = needed_bits(rate,expected_num_items);
         BloomFilter::with_size(bits,optimal_num_hashes(bits,expected_num_items))
+    }
+}
+
+impl<R,S> BloomFilter<R,S>
+    where R: BuildHasher, S: BuildHasher
+{
+
+    /// Create a new BloomFilter with the specified number of bits,
+    /// hashes, and the two specified HashBuilders.  Note the the
+    /// HashBuilders MUST provide independent hash values.  Passing
+    /// two HashBuilders that produce the same or correlated hash
+    /// values will break the false positive guarantees of the
+    /// BloomFilter.
+    pub fn with_size_and_hashers(num_bits: usize, num_hashes: u32,
+                                 hash_builder_one: R, hash_builder_two: S) -> BloomFilter<R,S> {
+        BloomFilter {
+            bits: BitVec::from_elem(num_bits,false),
+            num_hashes: num_hashes,
+            hash_builder_one: hash_builder_one,
+            hash_builder_two: hash_builder_two,
+        }
+    }
+
+    /// create a BloomFilter that expects to hold
+    /// `expected_num_items`.  The filter will be sized to have a
+    /// false positive rate of the value specified in `rate`.  Items
+    /// will be hashed using the Hashers produced by
+    /// `hash_builder_one` and `hash_builder_two`.  Note the the
+    /// HashBuilders MUST provide independent hash values.  Passing
+    /// two HashBuilders that produce the same or correlated hash
+    /// values will break the false positive guarantees of the
+    /// BloomFilter.
+    pub fn with_rate_and_hashers(rate: f32, expected_num_items: u32,
+                                 hash_builder_one: R, hash_builder_two: S) -> BloomFilter<R, S> {
+        let bits = needed_bits(rate,expected_num_items);
+        BloomFilter::with_size_and_hashers(bits,optimal_num_hashes(bits,expected_num_items),
+                                           hash_builder_one,hash_builder_two)
     }
 
     /// Get the number of bits this BloomFilter is using
@@ -99,12 +134,26 @@ impl BloomFilter {
         self.num_hashes
     }
 
-    /// Insert item into this bloomfilter
-    pub fn insert<T: Hash>(& mut self,item: &T) {
+    /// Insert item into this BloomFilter.
+    ///
+    /// If the BloomFilter did not have this value present, `true` is returned.
+    ///
+    /// If the BloomFilter did have this value present, `false` is returned.
+    pub fn insert<T: Hash>(& mut self,item: &T) -> bool {
+        let mut contained = true;
         for h in self.get_hashes(item) {
             let idx = (h % self.bits.len() as u64) as usize;
+            match self.bits.get(idx) {
+                Some(b) => {
+                    if !b {
+                        contained = false;
+                    }
+                }
+                None => { panic!("Hash mod failed in insert"); }
+            }
             self.bits.set(idx,true)
         }
+        !contained
     }
 
     /// Check if the item has been inserted into this bloom filter.
@@ -132,12 +181,12 @@ impl BloomFilter {
 
 
     fn get_hashes<T: Hash>(&self, item: &T) -> HashIter {
-        let mut h1 = self.h1.clone();
-        let mut h2 = self.h2.clone();
-        item.hash(&mut h1);
-        item.hash(&mut h2);
-        let h1 = h1.finish();
-        let h2 = h2.finish();
+        let mut b1 = self.hash_builder_one.build_hasher();
+        let mut b2 = self.hash_builder_two.build_hasher();
+        item.hash(&mut b1);
+        item.hash(&mut b2);
+        let h1 = b1.finish();
+        let h2 = b2.finish();
         HashIter {
             h1: h1,
             h2: h2,
@@ -165,6 +214,9 @@ pub fn needed_bits(false_pos_rate:f32, num_items: u32) -> usize {
     let ln22 = core::f32::consts::LN_2 * core::f32::consts::LN_2;
     (num_items as f32 * ((1.0/false_pos_rate).ln() / ln22)).round() as usize
 }
+
+#[cfg(test)]
+extern crate rand;
 
 #[cfg(feature = "do-bench")]
 #[cfg(test)]

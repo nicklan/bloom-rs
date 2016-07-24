@@ -1,18 +1,31 @@
-//! ```rust
-//! use bloom::BloomFilter;
-//! let expected_num_items = 1000;
-//! let false_positive_rate = 0.01;
-//! let mut filter:BloomFilter = BloomFilter::with_rate(false_positive_rate,expected_num_items);
-//! filter.insert(&1);
-//! filter.contains(&1); /* true */
-//! filter.contains(&2); /* false */
-//! ```
+//! A standard bloom filter.  If an item is instered then `contains`
+//! is guaranteed to return `true` for that item.  For items not
+//! inserted `contains` will probably return false.  The probability
+//! that `contains` returns `true` for an item that was not inserted
+//! is called the False Positive Rate.
 //!
 //! # False Positive Rate
 //! The false positive rate is specified as a float in the range
 //! (0,1).  If indicates that out of `X` probes, `X * rate` should
 //! return a false positive.  Higher values will lead to smaller (but
 //! more inaccurate) filters.
+//!
+//! # Example Usage
+//!
+//! ```rust
+//! use bloom::BloomFilter;
+//!
+//! let expected_num_items = 1000;
+//!
+//! // out of 100 items that are not inserted, expect 1 to return true for contain
+//! let false_positive_rate = 0.01;
+//!
+//! let mut filter = BloomFilter::with_rate(false_positive_rate,expected_num_items);
+//! filter.insert(&1);
+//! filter.contains(&1); /* true */
+//! filter.contains(&2); /* false */
+//! ```
+//!
 
 extern crate core;
 extern crate bit_vec;
@@ -23,6 +36,9 @@ use std::collections::hash_map::RandomState;
 use std::hash::{BuildHasher,Hash,Hasher};
 use std::iter::Iterator;
 
+use super::{Intersectable,Unionable};
+
+/// A standard BloomFilter
 pub struct BloomFilter<R = RandomState, S = RandomState> {
     bits: BitVec,
     num_hashes: u32,
@@ -98,7 +114,7 @@ impl<R,S> BloomFilter<R,S>
         }
     }
 
-    /// create a BloomFilter that expects to hold
+    /// Create a BloomFilter that expects to hold
     /// `expected_num_items`.  The filter will be sized to have a
     /// false positive rate of the value specified in `rate`.  Items
     /// will be hashed using the Hashers produced by
@@ -185,6 +201,35 @@ impl<R,S> BloomFilter<R,S>
         }
     }
 }
+
+impl Intersectable for BloomFilter {
+    /// Calculates the intersection of two BloomFilters.  Only items inserted into both filters will still be present in `self`.
+    ///
+    /// Both BloomFilters must be using the same number of
+    /// bits. Returns true if self changed.
+    ///
+    /// # Panics
+    /// Panics if the BloomFilters are not using the same number of bits
+    fn intersect(&mut self, other: &BloomFilter) -> bool {
+        self.bits.intersect(&other.bits)
+    }
+}
+
+
+impl Unionable for BloomFilter {
+    /// Calculates the union of two BloomFilters.  Items inserted into
+    /// either filters will be present in `self`.
+    ///
+    /// Both BloomFilters must be using the same number of
+    /// bits. Returns true if self changed.
+    ///
+    /// # Panics
+    /// Panics if the BloomFilters are not using the same number of bits
+    fn union(&mut self, other: &BloomFilter) -> bool {
+        self.bits.union(&other.bits)
+    }
+}
+
 
 /// Return the optimal number of hashes to use for the given number of
 /// bits and items in a filter

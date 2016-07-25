@@ -1,31 +1,17 @@
-//! A standard bloom filter.  If an item is instered then `contains`
-//! is guaranteed to return `true` for that item.  For items not
-//! inserted `contains` will probably return false.  The probability
-//! that `contains` returns `true` for an item that was not inserted
-//! is called the False Positive Rate.
-//!
-//! # False Positive Rate
-//! The false positive rate is specified as a float in the range
-//! (0,1).  If indicates that out of `X` probes, `X * rate` should
-//! return a false positive.  Higher values will lead to smaller (but
-//! more inaccurate) filters.
-//!
-//! # Example Usage
-//!
-//! ```rust
-//! use bloom::BloomFilter;
-//!
-//! let expected_num_items = 1000;
-//!
-//! // out of 100 items that are not inserted, expect 1 to return true for contain
-//! let false_positive_rate = 0.01;
-//!
-//! let mut filter = BloomFilter::with_rate(false_positive_rate,expected_num_items);
-//! filter.insert(&1);
-//! filter.contains(&1); /* true */
-//! filter.contains(&2); /* false */
-//! ```
-//!
+// This program is free software; you can redistribute it and/or
+// modify it under the terms of the GNU General Public License as
+// published by the Free Software Foundation; either version 2 of the
+// License, or (at your option) any later version.
+
+// This program is distributed in the hope that it will be useful, but
+// WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+// General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with this program; if not, write to the Free Software
+// Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+// 02110-1301, USA.
 
 extern crate core;
 extern crate bit_vec;
@@ -38,7 +24,33 @@ use std::iter::Iterator;
 
 use super::{Intersectable,Unionable};
 
-/// A standard BloomFilter
+/// A standard BloomFilter.  If an item is instered then `contains`
+/// is guaranteed to return `true` for that item.  For items not
+/// inserted `contains` will probably return false.  The probability
+/// that `contains` returns `true` for an item that was not inserted
+/// is called the False Positive Rate.
+///
+/// # False Positive Rate
+/// The false positive rate is specified as a float in the range
+/// (0,1).  If indicates that out of `X` probes, `X * rate` should
+/// return a false positive.  Higher values will lead to smaller (but
+/// more inaccurate) filters.
+///
+/// # Example Usage
+///
+/// ```rust
+/// use bloom::BloomFilter;
+///
+/// let expected_num_items = 1000;
+///
+/// // out of 100 items that are not inserted, expect 1 to return true for contain
+/// let false_positive_rate = 0.01;
+///
+/// let mut filter = BloomFilter::with_rate(false_positive_rate,expected_num_items);
+/// filter.insert(&1);
+/// filter.contains(&1); /* true */
+/// filter.contains(&2); /* false */
+/// ```
 pub struct BloomFilter<R = RandomState, S = RandomState> {
     bits: BitVec,
     num_hashes: u32,
@@ -311,6 +323,7 @@ mod tests {
     use std::collections::HashSet;
     use bloom::rand::{self,Rng};
     use super::{BloomFilter,needed_bits,optimal_num_hashes};
+    use {Intersectable,Unionable};
 
     #[test]
     fn simple() {
@@ -323,7 +336,34 @@ mod tests {
     }
 
     #[test]
-    fn bloom_test() {
+    fn intersect() {
+        let mut b1:BloomFilter = BloomFilter::with_rate(0.01,20);
+        b1.insert(&1);
+        b1.insert(&2);
+        let mut b2:BloomFilter = BloomFilter::with_rate(0.01,20);
+        b2.insert(&1);
+
+        b1.intersect(&b2);
+
+        assert!(b1.contains(&1));
+        assert!(!b1.contains(&2));
+    }
+
+    #[test]
+    fn union() {
+        let mut b1:BloomFilter = BloomFilter::with_rate(0.01,20);
+        b1.insert(&1);
+        let mut b2:BloomFilter = BloomFilter::with_rate(0.01,20);
+        b2.insert(&2);
+
+        b1.union(&b2);
+
+        assert!(b1.contains(&1));
+        assert!(b1.contains(&2));
+    }
+
+    #[test]
+    fn fpr_test() {
         let cnt = 500000;
         let rate = 0.01 as f32;
 

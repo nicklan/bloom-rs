@@ -1,5 +1,30 @@
-//! Implementation of a bloom filter in rust
-//! # Basic Usage
+// A Rust BloomFilter implementation.
+// Copywrite (c) 2016 Nick Lanham
+
+// This program is free software; you can redistribute it and/or
+// modify it under the terms of the GNU General Public License as
+// published by the Free Software Foundation; either version 2 of the
+// License, or (at your option) any later version.
+
+// This program is distributed in the hope that it will be useful, but
+// WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+// General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with this program; if not, write to the Free Software
+// Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+// 02110-1301, USA.
+
+
+//! Am implementation of BloomFilters.
+//!
+//! # Usage
+//!
+//! This crate is [on crates.io](https://crates.io/crates/rand) and
+//! can be used by adding `bloom` to the dependencies in your
+//! project's `Cargo.toml`.
+//!
 //! ```toml
 //! [dependencies]
 //! bloom = "0.2.0"
@@ -11,6 +36,38 @@
 //! extern crate bloom;
 //! ```
 //!
+//! # Bloom Filters
+//!
+//! A Bloom Filter is an Approximate Set Membership structure, which
+//! means it can track a set of items and check if an item is a member
+//! of the set it is tracking.  It is able to do this using a much
+//! smaller amount of memory than storing the actual items, at the
+//! cost of an occasionally indicating that an item is in the set even
+//! though it is not.  This occurence is called a "False Positive".  A
+//! traditional Bloom Filter will never have a "False Negative"
+//! however, which would be indicating that an item is *not* in the
+//! set, when in fact it is.  The frequency of false positives can be
+//! preciecly bounded by setting the size of the filter, and is called
+//! the False Positive Rate.  Their small memory footprint and absence
+//! of false negatives makes BloomFilters suitable for many
+//! applications.
+//!
+//! # Example Usage
+//!
+//! ```rust
+//! use bloom::BloomFilter;
+//!
+//! let expected_num_items = 1000;
+//!
+//! // out of 100 items that are not inserted, expect 1 to return true for contain
+//! let false_positive_rate = 0.01;
+//!
+//! let mut filter = BloomFilter::with_rate(false_positive_rate,expected_num_items);
+//! filter.insert(&1);
+//! filter.contains(&1); /* true */
+//! filter.contains(&2); /* probably false */
+//! ```
+
 
 #![crate_name="bloom"]
 #![crate_type = "rlib"]

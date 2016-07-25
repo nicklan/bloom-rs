@@ -80,6 +80,9 @@ extern crate bit_vec;
 pub mod bloom;
 pub use bloom::{BloomFilter,optimal_num_hashes,needed_bits};
 
+pub mod valuevec;
+pub use valuevec::ValueVec;
+
 /// Filters that implement this trait can be intersected with filters
 /// of the same type to produce a filter that contains the
 /// items that have been inserted into *both* filters.

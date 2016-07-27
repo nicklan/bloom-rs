@@ -19,10 +19,10 @@ extern crate bit_vec;
 use bit_vec::BitVec;
 use std::cmp::{min,max};
 use std::collections::hash_map::RandomState;
-use std::hash::{BuildHasher,Hash,Hasher};
-use std::iter::Iterator;
+use std::hash::{BuildHasher,Hash};
 
 use super::{Intersectable,Unionable};
+use super::hashing::HashIter;
 
 /// A standard BloomFilter.  If an item is instered then `contains`
 /// is guaranteed to return `true` for that item.  For items not
@@ -58,32 +58,6 @@ pub struct BloomFilter<R = RandomState, S = RandomState> {
     hash_builder_two: S,
 }
 
-struct HashIter {
-    h1: u64,
-    h2: u64,
-    i: u32,
-    count: u32,
-}
-
-impl Iterator for HashIter {
-    type Item = u64;
-
-    fn next(&mut self) -> Option<u64> {
-        if self.i == self.count {
-            return None;
-        }
-        let r = match self.i {
-            0 => { self.h1 }
-            1 => { self.h2 }
-            _ => {
-                let p1 = self.h1.wrapping_add(self.i as u64);
-                p1.wrapping_mul(self.h2)
-            }
-        };
-        self.i+=1;
-        Some(r)
-    }
-}
 
 impl BloomFilter<RandomState, RandomState> {
     /// Create a new BloomFilter with the specified number of bits,
@@ -159,7 +133,10 @@ impl<R,S> BloomFilter<R,S>
     /// If the BloomFilter did have this value present, `false` is returned.
     pub fn insert<T: Hash>(& mut self,item: &T) -> bool {
         let mut contained = true;
-        for h in self.get_hashes(item) {
+        for h in HashIter::from(item,
+                                self.num_hashes,
+                                &self.hash_builder_one,
+                                &self.hash_builder_two) {
             let idx = (h % self.bits.len() as u64) as usize;
             match self.bits.get(idx) {
                 Some(b) => {
@@ -178,7 +155,10 @@ impl<R,S> BloomFilter<R,S>
     /// This function can return false positives, but not false
     /// negatives.
     pub fn contains<T: Hash>(&self, item: &T) -> bool {
-        for h in self.get_hashes(item) {
+        for h in HashIter::from(item,
+                                self.num_hashes,
+                                &self.hash_builder_one,
+                                &self.hash_builder_two) {
             let idx = (h % self.bits.len() as u64) as usize;
             match self.bits.get(idx) {
                 Some(b) => {
@@ -195,22 +175,6 @@ impl<R,S> BloomFilter<R,S>
     /// Remove all values from this BloomFilter
     pub fn clear(&mut self) {
         self.bits.clear();
-    }
-
-
-    fn get_hashes<T: Hash>(&self, item: &T) -> HashIter {
-        let mut b1 = self.hash_builder_one.build_hasher();
-        let mut b2 = self.hash_builder_two.build_hasher();
-        item.hash(&mut b1);
-        item.hash(&mut b2);
-        let h1 = b1.finish();
-        let h2 = b2.finish();
-        HashIter {
-            h1: h1,
-            h2: h2,
-            i: 0,
-            count: self.num_hashes,
-        }
     }
 }
 

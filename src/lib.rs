@@ -67,6 +67,34 @@
 //! filter.contains(&1); /* true */
 //! filter.contains(&2); /* probably false */
 //! ```
+//!
+//! # Counting Bloom Filters
+//!
+//! Counting filters allow removal from a Bloom filter without
+//! recreating the filter afresh. A counting filter uses an n-bit
+//! counter where a standard Bloom Filter uses a single bit.  Counting
+//! filters can also provide an upper bound on the number of times a
+//! particular element has been inserted into the filter.  In general
+//! 4 bits per element is considered a good size.  This will cause the
+//! filter to use 4 times as much memory as compared to standard Bloom
+//! Filter.
+//!
+//! # Example Usage
+//!
+//! ```rust
+//! use bloom::CountingBloomFilter;
+//! // Create a counting filter that uses 4 bits per element and has a false positive rate
+//! // of 0.01 when 100 items have been inserted
+//! let mut cbf:CountingBloomFilter = CountingBloomFilter::with_rate(4,0.01,100);
+//! cbf.insert(&1);
+//! cbf.insert(&2);
+//! assert_eq!(cbf.estimate_count(&1),1);
+//! assert_eq!(cbf.estimate_count(&2),1);
+//! assert_eq!(cbf.insert(&1),1);
+//! assert_eq!(cbf.estimate_count(&1),2);
+//! assert_eq!(cbf.remove(&1),2);
+//! assert_eq!(cbf.estimate_count(&1),1);
+//! ```
 
 
 #![crate_name="bloom"]
@@ -77,8 +105,13 @@
 extern crate core;
 extern crate bit_vec;
 
+mod hashing;
+
 pub mod bloom;
 pub use bloom::{BloomFilter,optimal_num_hashes,needed_bits};
+
+pub mod counting;
+pub use counting::CountingBloomFilter;
 
 pub mod valuevec;
 pub use valuevec::ValueVec;

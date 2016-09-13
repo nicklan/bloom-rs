@@ -72,11 +72,20 @@ impl ValueVec {
         self.mask
     }
 
+    pub fn clear(&mut self) {
+        self.bits.clear();
+    }
+
     fn set_bits(&mut self, idx: usize,  val: u32, num_bits: usize) {
         let mut blocks = unsafe {self.bits.storage_mut()};
         let blockidx = idx/32;
         let shift = 32-(idx%32)-num_bits;
-        let mask = self.mask << shift;
+        let mask =
+            if num_bits==self.bits_per_val {
+                self.mask
+            } else {
+                2u32.pow(num_bits as u32)-1
+            } << shift;
         let block = blocks[blockidx];
 
         // this will be the value with all bits in our value set to zero
@@ -88,10 +97,19 @@ impl ValueVec {
     fn get_bits(&self, idx: usize, num_bits: usize) -> u32 {
         let blocks = self.bits.storage();
         let shift = 32-(idx%32)-num_bits;
-        let mask = self.mask << shift;
-
+        let mask =
+            if num_bits==self.bits_per_val {
+                self.mask
+            } else {
+                2u32.pow(num_bits as u32)-1
+            } << shift;
         let val = blocks[idx/32] & mask;
         val >> shift
+    }
+
+    /// Get the total number of bits this valuevec is using
+    pub fn len(&self) -> usize {
+        self.bits.len()
     }
 
     /// Set value at index `i` to value `val`.

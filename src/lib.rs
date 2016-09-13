@@ -57,7 +57,7 @@
 //! # Example Usage
 //!
 //! ```rust
-//! use bloom::BloomFilter;
+//! use bloom::{ASMS,BloomFilter};
 //!
 //! let expected_num_items = 1000;
 //!
@@ -84,7 +84,7 @@
 //! # Example Usage
 //!
 //! ```rust
-//! use bloom::CountingBloomFilter;
+//! use bloom::{ASMS,CountingBloomFilter};
 //! // Create a counting filter that uses 4 bits per element and has a false positive rate
 //! // of 0.01 when 100 items have been inserted
 //! let mut cbf:CountingBloomFilter = CountingBloomFilter::with_rate(4,0.01,100);
@@ -92,7 +92,7 @@
 //! cbf.insert(&2);
 //! assert_eq!(cbf.estimate_count(&1),1);
 //! assert_eq!(cbf.estimate_count(&2),1);
-//! assert_eq!(cbf.insert(&1),1);
+//! assert_eq!(cbf.insert_get_count(&1),1);
 //! assert_eq!(cbf.estimate_count(&1),2);
 //! assert_eq!(cbf.remove(&1),2);
 //! assert_eq!(cbf.estimate_count(&1),1);
@@ -106,6 +106,7 @@
 
 extern crate core;
 extern crate bit_vec;
+use std::hash::Hash;
 
 mod hashing;
 
@@ -117,6 +118,13 @@ pub use counting::CountingBloomFilter;
 
 pub mod valuevec;
 pub use valuevec::ValueVec;
+
+/// Stanard filter functions
+pub trait ASMS {
+    fn insert<T: Hash>(& mut self,item: &T) -> bool;
+    fn contains<T: Hash>(&self, item: &T) -> bool;
+    fn clear(&mut self);
+}
 
 /// Filters that implement this trait can be intersected with filters
 /// of the same type to produce a filter that contains the

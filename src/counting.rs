@@ -2,6 +2,7 @@
 use std::hash::{BuildHasher,Hash};
 use std::collections::hash_map::RandomState;
 use super::ValueVec;
+use super::ASMS;
 use super::hashing::HashIter;
 
 /// A standard counting bloom filter that uses a fixed number of bits
@@ -105,32 +106,11 @@ impl<R,S> CountingBloomFilter<R,S>
                                                    hash_builder_one,hash_builder_two)
     }
 
-    /// Inserts an item, returns the estimated count of the number of
-    /// times this item had previously been inserted (not counting
-    /// this insertion)
-    pub fn insert<T: Hash>(&mut self, item: &T) -> u32 {
-        let mut min = u32::max_value();
-        for h in HashIter::from(item,
-                                self.num_hashes,
-                                &self.hash_builder_one,
-                                &self.hash_builder_two) {
-            let idx = (h % self.num_entries) as usize;
-            let cur = self.counters.get(idx);
-            if cur < min {
-                min = cur;
-            }
-            if cur < self.counters.max_value() {
-                self.counters.set(idx,cur+1);
-            }
-        }
-        min
-    }
-
     /// Remove an item.  Returns an upper bound of the number of times
     /// this item had been inserted previously (i.e. the count before
     /// this remove).  Returns 0 if item was never inserted.
     pub fn remove<T: Hash>(&mut self, item: &T) ->  u32 {
-        if !self.contains(item) {
+        if !(self as &CountingBloomFilter<R,S>).contains(item) {
             return 0;
         }
         let mut min = u32::max_value();
@@ -170,10 +150,56 @@ impl<R,S> CountingBloomFilter<R,S>
         }
         min
     }
+
+    /// Inserts an item, returns the estimated count of the number of
+    /// times this item had previously been inserted (not counting
+    /// this insertion)
+    pub fn insert_get_count<T: Hash>(&mut self, item: &T) -> u32 {
+        let mut min = u32::max_value();
+        for h in HashIter::from(item,
+                                self.num_hashes,
+                                &self.hash_builder_one,
+                                &self.hash_builder_two) {
+            let idx = (h % self.num_entries) as usize;
+            let cur = self.counters.get(idx);
+            if cur < min {
+                min = cur;
+            }
+            if cur < self.counters.max_value() {
+                self.counters.set(idx,cur+1);
+            }
+        }
+        min
+    }
+}
+
+impl<R,S> ASMS for CountingBloomFilter<R,S>
+    where R: BuildHasher, S: BuildHasher {
+    /// Inserts an item, returns true if this item was already in the
+    /// filter any number of times
+    fn insert<T: Hash>(&mut self, item: &T) -> bool {
+        let mut min = u32::max_value();
+        for h in HashIter::from(item,
+                                self.num_hashes,
+                                &self.hash_builder_one,
+                                &self.hash_builder_two) {
+            let idx = (h % self.num_entries) as usize;
+            let cur = self.counters.get(idx);
+            if cur < min {
+                min = cur;
+            }
+            if cur < self.counters.max_value() {
+                self.counters.set(idx,cur+1);
+            }
+        }
+        min > 0
+    }
+
+
     /// Check if the item has been inserted into this
     /// CountingBloomFilter.  This function can return false
     /// positives, but not false negatives.
-    pub fn contains<T: Hash>(&mut self, item: &T) -> bool {
+    fn contains<T: Hash>(&self, item: &T) -> bool {
         for h in HashIter::from(item,
                                 self.num_hashes,
                                 &self.hash_builder_one,
@@ -186,20 +212,23 @@ impl<R,S> CountingBloomFilter<R,S>
         }
         true
     }
+
+    /// Remove all values from this CountingBloomFilter
+    fn clear(&mut self) {
+        self.counters.clear();
+    }
 }
 
 
 #[cfg(test)]
 mod tests {
-    //use std::collections::HashSet;
-    //use bloom::rand::{self,Rng};
-    //use super::{BloomFilter,needed_bits,optimal_num_hashes};
     use super::CountingBloomFilter;
+    use ASMS;
 
     #[test]
     fn simple() {
         let mut cbf:CountingBloomFilter = CountingBloomFilter::with_rate(4,0.01,100);
-        assert_eq!(cbf.insert(&1),0);
+        assert_eq!(cbf.insert(&1),false);
         assert!(cbf.contains(&1));
         assert!(!cbf.contains(&2));
     }
@@ -208,7 +237,7 @@ mod tests {
     fn remove() {
         let mut cbf:CountingBloomFilter = CountingBloomFilter::with_rate(CountingBloomFilter::bits_for_max(10)
                                                                          ,0.01,100);
-        assert_eq!(cbf.insert(&1),0);
+        assert_eq!(cbf.insert_get_count(&1),0);
         cbf.insert(&2);
         assert!(cbf.contains(&1));
         assert!(cbf.contains(&2));
@@ -225,7 +254,7 @@ mod tests {
         cbf.insert(&2);
         assert_eq!(cbf.estimate_count(&1),1);
         assert_eq!(cbf.estimate_count(&2),1);
-        assert_eq!(cbf.insert(&1),1);
+        assert_eq!(cbf.insert_get_count(&1),1);
         assert_eq!(cbf.estimate_count(&1),2);
     }
 }

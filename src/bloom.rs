@@ -21,7 +21,7 @@ use std::cmp::{min,max};
 use std::collections::hash_map::RandomState;
 use std::hash::{BuildHasher,Hash};
 
-use super::{Intersectable,Unionable};
+use super::{ASMS,Intersectable,Unionable};
 use super::hashing::HashIter;
 
 /// A standard BloomFilter.  If an item is instered then `contains`
@@ -39,7 +39,7 @@ use super::hashing::HashIter;
 /// # Example Usage
 ///
 /// ```rust
-/// use bloom::BloomFilter;
+/// use bloom::{ASMS,BloomFilter};
 ///
 /// let expected_num_items = 1000;
 ///
@@ -125,13 +125,16 @@ impl<R,S> BloomFilter<R,S>
     pub fn num_hashes(&self) -> u32 {
         self.num_hashes
     }
+}
 
+impl<R,S> ASMS for BloomFilter<R,S>
+    where R: BuildHasher, S: BuildHasher {
     /// Insert item into this BloomFilter.
     ///
     /// If the BloomFilter did not have this value present, `true` is returned.
     ///
     /// If the BloomFilter did have this value present, `false` is returned.
-    pub fn insert<T: Hash>(& mut self,item: &T) -> bool {
+    fn insert<T: Hash>(& mut self,item: &T) -> bool {
         let mut contained = true;
         for h in HashIter::from(item,
                                 self.num_hashes,
@@ -154,7 +157,7 @@ impl<R,S> BloomFilter<R,S>
     /// Check if the item has been inserted into this bloom filter.
     /// This function can return false positives, but not false
     /// negatives.
-    pub fn contains<T: Hash>(&self, item: &T) -> bool {
+    fn contains<T: Hash>(&self, item: &T) -> bool {
         for h in HashIter::from(item,
                                 self.num_hashes,
                                 &self.hash_builder_one,
@@ -173,7 +176,7 @@ impl<R,S> BloomFilter<R,S>
     }
 
     /// Remove all values from this BloomFilter
-    pub fn clear(&mut self) {
+    fn clear(&mut self) {
         self.bits.clear();
     }
 }
@@ -237,6 +240,7 @@ mod bench {
     use bloom::rand::{self,Rng};
 
     use super::BloomFilter;
+    use ASMS;
 
     #[bench]
     fn insert_benchmark(b: &mut Bencher) {
@@ -247,12 +251,8 @@ mod bench {
         let mut rng = rand::thread_rng();
 
         b.iter(|| {
-            let mut i = 0;
-            while i < cnt {
-                let v = rng.gen::<i32>();
-                bf.insert(&v);
-                i+=1;
-            }
+            let v = rng.gen::<i32>();
+            bf.insert(&v);
         })
     }
 
@@ -272,12 +272,8 @@ mod bench {
         }
 
         b.iter(|| {
-            i = 0;
-            while i < cnt {
-                let v = rng.gen::<i32>();
-                bf.contains(&v);
-                i+=1;
-            }
+            let v = rng.gen::<i32>();
+            bf.contains(&v);
         })
     }
 }
@@ -287,7 +283,7 @@ mod tests {
     use std::collections::HashSet;
     use bloom::rand::{self,Rng};
     use super::{BloomFilter,needed_bits,optimal_num_hashes};
-    use {Intersectable,Unionable};
+    use {ASMS,Intersectable,Unionable};
 
     #[test]
     fn simple() {

@@ -27,6 +27,9 @@ Use [Cargo](http://doc.crates.io/) and add the following to your Cargo.toml
 bloom="0.2.0"
 ```
 
+# Documentation
+See [here](https://docs.rs/bloom/)
+
 # False Positive Rate
 The false positive rate is specified as a float in the range
 (0,1).  If indicates that out of `X` probes, `X * rate` should

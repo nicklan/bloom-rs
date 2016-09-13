@@ -1,9 +1,10 @@
 [package]
 name = "bloom"
 description = "Bloom filter implementation in rust"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["Nick Lanham <nick@afternight.org>"]
 homepage = "https://github.com/nicklan/bloom-rs"
+documentation = "https://docs.rs/bloom/0.3.0/bloom/"
 readme = "README.md"
 keywords = ["bloom", "filter", "bloomfilter"]
 license = "GPL-2.0"

@@ -72,6 +72,7 @@ impl ValueVec {
         self.mask
     }
 
+    /// Resets all values to 0 in this ValueVec
     pub fn clear(&mut self) {
         self.bits.clear();
     }

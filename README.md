@@ -1,6 +1,10 @@
 # bloom
 
-An implementation of bloom filters in rust.
+An implementation of various Approximate Set Membership structures in
+Rust.  Currently included are a standard Bloom Filter, and the
+simplest kind of Counting Bloom Filter.
+
+At some point more advanced types of ASMSes will be added.
 
 # Basic Usage
 

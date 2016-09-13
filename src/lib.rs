@@ -17,7 +17,9 @@
 // 02110-1301, USA.
 
 
-//! Am implementation of BloomFilters.
+//! An implementation of various Approximate Set Membership structures
+//! in Rust.  Currently included are a standard Bloom Filter, and the
+//! simplest kind of Counting Bloom Filter.
 //!
 //! # Usage
 //!

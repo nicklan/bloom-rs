@@ -24,7 +24,7 @@ use std::hash::{BuildHasher,Hash};
 use super::{ASMS,Intersectable,Unionable};
 use super::hashing::HashIter;
 
-/// A standard BloomFilter.  If an item is instered then `contains`
+/// A standard BloomFilter.  If an item is inserted then `contains`
 /// is guaranteed to return `true` for that item.  For items not
 /// inserted `contains` will probably return false.  The probability
 /// that `contains` returns `true` for an item that was not inserted

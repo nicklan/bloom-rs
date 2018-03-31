@@ -34,7 +34,8 @@ impl ValueVec {
         let bits = bits_per_val*count;
         ValueVec {
             bits_per_val: bits_per_val,
-            mask: 2u32.pow(bits_per_val as u32)-1,
+            // to avoid overflow in case bits_per_val equals 32
+            mask: if bits_per_val < 32 {2u32.pow(bits_per_val as u32)-1} else { 0xFFFFFFFF} ,
             bits: BitVec::from_elem(bits,false),
         }
     }

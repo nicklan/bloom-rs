@@ -4,6 +4,7 @@ description = "Bloom filter implementation in rust"
 version = "0.3.1"
 authors = ["Nick Lanham <nick@afternight.org>"]
 homepage = "https://github.com/nicklan/bloom-rs"
+repository = "https://github.com/nicklan/bloom-rs"
 documentation = "https://docs.rs/bloom/"
 readme = "README.md"
 keywords = ["bloom", "filter", "bloomfilter"]

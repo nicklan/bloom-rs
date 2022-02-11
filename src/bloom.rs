@@ -32,7 +32,7 @@ use super::hashing::HashIter;
 ///
 /// # False Positive Rate
 /// The false positive rate is specified as a float in the range
-/// (0,1).  If indicates that out of `X` probes, `X * rate` should
+/// (0,1).  It indicates that out of `X` probes, `X * rate` should
 /// return a false positive.  Higher values will lead to smaller (but
 /// more inaccurate) filters.
 ///
